@@ -238,3 +238,5 @@ fabric.properties
 
 #combinations file nukes repo
 combinations.txt
+combinations.csv
+combinations.tsv
