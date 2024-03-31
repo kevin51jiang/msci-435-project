@@ -9,7 +9,7 @@ import (
 func TestCheckForValidity(t *testing.T) {
 	tests := []struct {
 		name                   string
-		potentialAvailability  int64
+		potentialAvailability  uint64
 		universityAvailability []bool
 		want                   bool
 	}{
