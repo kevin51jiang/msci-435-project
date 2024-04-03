@@ -215,8 +215,10 @@ func solveMembers(day int) {
 			}
 			fmt.Println("Adding combo", c_ind, " ", combo)
 			initialSolution = append(initialSolution, combo)
+			time++
 			break
 		}
+		log.Panicf("Error: Time not found in particiant combos: %v", time)
 	}
 
 	fmt.Println("Initial Solution: ", initialSolution, " Length: ", len(initialSolution))
@@ -291,10 +293,10 @@ func solveMembers(day int) {
 func main() {
 
 	solveMembers(0)
-	solveMembers(1)
-	solveMembers(2)
-	solveMembers(3)
-	solveMembers(4)
+	// solveMembers(1)
+	// solveMembers(2)
+	// solveMembers(3)
+	// solveMembers(4)
 
 	// // Show the distribution of the number of meetings, based on time for memberCombos
 	// meetingsDistribution := make(map[int]int)
