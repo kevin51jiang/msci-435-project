@@ -3,39 +3,219 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
+	"strconv"
 
+	"github.com/jedib0t/go-pretty/table"
 	"github.com/kevin51jiang/msci-435-go/solver"
 )
 
-func main() {
+// func solveChairs() {
+
+// 	const numParticipants = 10
+// 	numIts := 0
+// 	const maxIts = 10000
+
+// 	// Read in and parse data/maxMeetings.csv
+// 	maxMeetings, err := solver.ParseMaxMeetingsCSV("../data/maxMeetings.csv")
+// 	if err != nil {
+// 		log.Fatalf("Failed to parse maxMeetings.csv: %v", err)
+// 	}
+// 	fmt.Printf("Max Meetings: %v\n", maxMeetings)
+
+// 	// // Read in and parse data/combinations-chairs-0.tsv
+// 	chairCombos, err := solver.ParseChairCombos("../data/combinations-chairs-0.tsv", maxMeetings)
+// 	if err != nil {
+// 		log.Fatalf("Failed to parse combinations-chairs-0.tsv: %v", err)
+// 	}
+// 	fmt.Printf("Chair Combos: len(%v)\n", len(chairCombos))
+
+// 	// Create a map that goes from the participants in a combo to the combo
+// 	chairCombosMap := make(map[string][]solver.ParticipantsCombination)
+// 	for _, combo := range chairCombos {
+// 		chairCombosMap[combo.GetKey()] = append(chairCombosMap[combo.GetKey()], combo)
+// 	}
+
+// 	// initial solution is the first entry for each distinct day and time
+// 	initialSolution := make([]solver.ParticipantsCombination, 0)
+
+// 	for time := 1; time < 34+1; time++ {
+// 		for c_ind, combo := range chairCombos {
+// 			if combo.Time != int8(time) {
+// 				continue
+// 			}
+// 			fmt.Println("Adding combo", c_ind, " ", combo)
+// 			initialSolution = append(initialSolution, combo)
+// 			break
+// 		}
+// 	}
+
+// 	fmt.Println("Initial Solution: ", initialSolution, " Length: ", len(initialSolution))
+
+// 	solution := make([]solver.ParticipantsCombination, len(initialSolution))
+// 	copy(solution, initialSolution)
+
+// 	visited := make(map[string]bool)
+// 	visited[solver.GetSolutionKey(solution)] = true
+// 	bestEquitability := solver.CalculateEquitability(solution, numParticipants)
+
+// 	// Tabu Search
+// 	for {
+// 		// Get neighborhood
+// 		neighborhood := solver.GetNeighborhood(solution, chairCombosMap, numParticipants)
+
+// 		// Find the best entry in the neighborhood
+// 		for _, entry := range neighborhood {
+// 			// fmt.Println("Entry: ", solver.GetSolutionDistribution(entry, numParticipants))
+// 			newEq := solver.CalculateEquitability(entry, numParticipants)
+// 			// fmt.Println("New Eq: ", newEq, " Best Eq: ", bestEquitability)
+// 			if newEq <= bestEquitability && !visited[solver.GetSolutionKey(entry)] {
+// 				copy(solution, entry)
+// 				bestEquitability = solver.CalculateEquitability(entry, numParticipants)
+// 			}
+// 			visited[solver.GetSolutionKey(entry)] = true
+// 		}
+// 		numIts++
+// 		fmt.Println("Iteration: ", numIts, " Best Equitability: ", bestEquitability, " Solution length: ", len(solution))
+
+// 		// if len(solution) == len(prevSol) {
+// 		// 	equal := true
+// 		// 	for i := range solution {
+// 		// 		if !reflect.DeepEqual(solution[i], prevSol[i]) {
+// 		// 			equal = false
+// 		// 			break
+// 		// 		}
+// 		// 	}
+// 		// 	if equal {
+// 		// 		break
+// 		// 	}
+// 		// }
+
+// 		if numIts > maxIts {
+// 			break
+// 		}
+// 	}
+
+// 	fmt.Println("Final Solution: ", solution)
+// 	fmt.Println()
+
+// 	fmt.Println("Initial Meetings: ", solver.GetSolutionDistribution(initialSolution, numParticipants))
+// 	fmt.Println("Final Meetings: ", solver.GetSolutionDistribution(solution, numParticipants))
+
+// 	fmt.Println()
+
+// 	fmt.Println(solver.DisplaySolution(solution, numParticipants, "Chair"))
+
+// }
+
+func writeToLog(day int, eqLog []float64) {
+	filename := fmt.Sprintf("../data/equitabilityLog-%v.csv", day)
+	file, err := os.Create(filename)
+	if err != nil {
+		log.Fatalf("Failed to create file: %v", err)
+	}
+	defer file.Close()
+
+	for _, eq := range eqLog {
+		file.WriteString(fmt.Sprintf("%v\n", eq))
+	}
+}
+
+type DisplayStyle string
+
+const (
+	CSV      DisplayStyle = "csv"
+	HTML     DisplayStyle = "html"
+	Markdown DisplayStyle = "markdown"
+	Console  DisplayStyle = "console"
+)
+
+func DisplaySolution(solution []solver.ParticipantsCombination, numParticipants int8, title string, displayStyle DisplayStyle) string {
+
+	t := table.NewWriter()
+	// t.SetCaption("Suggested Schedule (Tabu Search)")
+
+	header := table.Row{}
+	header = append(header, "Time")
+	for i := 0; i < int(numParticipants); i++ {
+		header = append(header, title+" "+strconv.Itoa(i+1))
+	}
+	t.AppendHeader(header)
+
+	for _, combo := range solution {
+		participSchedule := table.Row{}
+		participSchedule = append(participSchedule, strconv.Itoa(int(combo.Time)))
+
+		isParticipating := make([]bool, numParticipants)
+		for _, participant := range combo.Participants {
+			isParticipating[participant] = true
+		}
+		for _, isParticipating := range isParticipating {
+			if isParticipating {
+				participSchedule = append(participSchedule, "X")
+			} else {
+				participSchedule = append(participSchedule, "")
+			}
+		}
+
+		t.AppendRow(participSchedule)
+	}
+
+	if displayStyle == CSV {
+		return t.RenderCSV()
+	} else if displayStyle == HTML {
+		return t.RenderHTML()
+	} else if displayStyle == Markdown {
+		return t.RenderMarkdown()
+	} else {
+		return t.Render()
+	}
+
+}
+
+func writeResults(day int, solution []solver.ParticipantsCombination, numParticipants int8) {
+	filename := fmt.Sprintf("../data/solution-%v.csv", day)
+	file, err := os.Create(filename)
+	if err != nil {
+		log.Fatalf("Failed to create file: %v", err)
+	}
+	defer file.Close()
+
+	file.WriteString(DisplaySolution(solution, numParticipants, "Member", CSV))
+}
+
+func solveMembers(day int) {
+	const numParticipants = 30
+
+	numIts := 0
+	const maxIts = 20000
 
 	// Read in and parse data/maxMeetings.csv
-
 	maxMeetings, err := solver.ParseMaxMeetingsCSV("../data/maxMeetings.csv")
 	if err != nil {
 		log.Fatalf("Failed to parse maxMeetings.csv: %v", err)
 	}
 	fmt.Printf("Max Meetings: %v\n", maxMeetings)
 
-	// // Read in and parse data/combinations-chairs-0.tsv
-	chairCombos, err := solver.ParseChairCombos("../data/combinations-chairs-0.tsv", maxMeetings)
+	// // Read in and parse data/combinations-members-0.tsv
+	filename := fmt.Sprintf("../data/combinations-members-%v.tsv", day)
+	participCombos, err := solver.ParseMemberCombos(filename, maxMeetings)
 	if err != nil {
-		log.Fatalf("Failed to parse combinations-chairs-0.tsv: %v", err)
+		log.Fatalf("Failed to parse %v: %v", filename, err)
 	}
-	fmt.Printf("Chair Combos: len(%v)\n", len(chairCombos))
+	fmt.Printf("Member Combos: len(%v)\n", len(participCombos))
 
-	// Create a map that goes from the participants in a combo to the combo
-	chairCombosMap := make(map[string][]solver.ParticipantsCombination)
-	for _, combo := range chairCombos {
-		chairCombosMap[combo.GetKey()] = append(chairCombosMap[combo.GetKey()], combo)
-	}
+	// // Create a map that goes from the participants in a combo to the combo
+	// chairCombosMap := make(map[string][]solver.ParticipantsCombination)
+	// for _, combo := range participCombos {
+	// 	chairCombosMap[combo.GetKey()] = append(chairCombosMap[combo.GetKey()], combo)
+	// }
 
 	// initial solution is the first entry for each distinct day and time
 	initialSolution := make([]solver.ParticipantsCombination, 0)
 
-	const numParticipants = 10
 	for time := 1; time < 34+1; time++ {
-		for c_ind, combo := range chairCombos {
+		for c_ind, combo := range participCombos {
 			if combo.Time != int8(time) {
 				continue
 			}
@@ -51,17 +231,16 @@ func main() {
 	copy(solution, initialSolution)
 	// prevSol := initialSolution
 
-	numIts := 0
-	const maxIts = 10000
-
 	visited := make(map[string]bool)
 	visited[solver.GetSolutionKey(solution)] = true
 	bestEquitability := solver.CalculateEquitability(solution, numParticipants)
+	bestEquitabilityLog := make([]float64, 0)
+	bestEquitabilityLog = append(bestEquitabilityLog, bestEquitability)
 
 	// Tabu Search
 	for {
 		// Get neighborhood
-		neighborhood := solver.GetNeighborhood(solution, chairCombosMap, numParticipants)
+		neighborhood := solver.GetNeighborhood(solution, participCombos, numParticipants)
 
 		// Find the best entry in the neighborhood
 		for _, entry := range neighborhood {
@@ -71,11 +250,15 @@ func main() {
 			if newEq <= bestEquitability && !visited[solver.GetSolutionKey(entry)] {
 				copy(solution, entry)
 				bestEquitability = solver.CalculateEquitability(entry, numParticipants)
+				bestEquitabilityLog = append(bestEquitabilityLog, bestEquitability)
 			}
 			visited[solver.GetSolutionKey(entry)] = true
 		}
 		numIts++
-		fmt.Println("Iteration: ", numIts, " Best Equitability: ", bestEquitability, " Solution length: ", len(solution))
+
+		if numIts%100 == 0 {
+			fmt.Println("Iteration: ", numIts, " Best Equitability: ", bestEquitability, " Solution length: ", len(solution))
+		}
 
 		// if len(solution) == len(prevSol) {
 		// 	equal := true
@@ -95,6 +278,10 @@ func main() {
 		}
 	}
 
+	// write out bestEquitabilityLog to a file
+	writeToLog(day, bestEquitabilityLog)
+	writeResults(day, solution, numParticipants)
+
 	fmt.Println("Final Solution: ", solution)
 	fmt.Println()
 
@@ -103,14 +290,13 @@ func main() {
 
 	fmt.Println()
 
-	fmt.Println(solver.DisplaySolution(solution, numParticipants, "Chair"))
+	fmt.Println(solver.DisplaySolution(solution, numParticipants, "Member"))
 
-	// // Read in and parse data/combinations-members-0.tsv
-	// memberCombos, err := parseMemberCombos("../data/combinations-members-0.tsv", maxMeetings)
-	// if err != nil {
-	// 	log.Fatalf("Failed to parse combinations-members-0.tsv: %v", err)
-	// }
-	// fmt.Printf("Member Combos: len(%v)\n", len(memberCombos))
+}
+
+func main() {
+
+	solveMembers(0)
 
 	// // Show the distribution of the number of meetings, based on time for memberCombos
 	// meetingsDistribution := make(map[int]int)

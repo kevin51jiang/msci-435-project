@@ -188,7 +188,7 @@ func ParseChairCombos(filename string, maxMeetings []MaxMeeting) ([]Participants
 	return chairCombinations, nil
 }
 
-func ParseMemberCombos(filename string, maxMeetings []MaxMeeting) ([]ParticipantsCombination, error) {
+func ParseMemberCombos(filename string, maxMeetings []MaxMeeting) (map[string]ParticipantsCombination, error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil, err
@@ -201,7 +201,7 @@ func ParseMemberCombos(filename string, maxMeetings []MaxMeeting) ([]Participant
 
 	_, _ = reader.Read() // Skip header
 
-	var memberCombinations []ParticipantsCombination
+	memberCombinations := make(map[string]ParticipantsCombination)
 	ind := 0
 	for {
 		line, err := reader.Read()
@@ -234,7 +234,9 @@ func ParseMemberCombos(filename string, maxMeetings []MaxMeeting) ([]Participant
 			continue
 		}
 
-		memberCombinations = append(memberCombinations, ParticipantsCombination{Day: int8(day), Time: int8(time), Participants: members})
+		participCombo := ParticipantsCombination{Day: int8(day), Time: int8(time), Participants: members}
+
+		memberCombinations[participCombo.GetKey()] = participCombo
 
 	}
 
@@ -274,7 +276,7 @@ func CalculateEquitability(combos []ParticipantsCombination, numParticipants int
 	return penalty
 }
 
-func GetNeighborhood(combos []ParticipantsCombination, allCombos map[string][]ParticipantsCombination, numParticipants int8) [][]ParticipantsCombination {
+func GetNeighborhood(combos []ParticipantsCombination, allCombos map[string]ParticipantsCombination, numParticipants int8) [][]ParticipantsCombination {
 	neighborhood := make([][]ParticipantsCombination, 0)
 
 	for comboInd, combo := range combos {
@@ -423,5 +425,5 @@ func DisplaySolution(solution []ParticipantsCombination, numParticipants int8, t
 		t.AppendRow(participSchedule)
 	}
 
-	return t.Render()
+	return t.RenderCSV()
 }
