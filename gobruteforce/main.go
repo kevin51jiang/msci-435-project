@@ -1,145 +1,136 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
-	"math/bits"
-	"os"
-	"runtime"
-	"sort"
 
-	"github.com/cheggaaa/pb/v3"
-	"github.com/kevin51jiang/msci-435-go/validity"
+	"github.com/kevin51jiang/msci-435-go/solver"
 )
-
-var topEntriesKept = 1000000
-
-func bToMb(b uint64) uint64 {
-	return b / 1024 / 1024
-}
-
-// Unmarshal allAvails.json
-type Availability struct {
-	M  []bool `json:"M"`
-	T  []bool `json:"T"`
-	W  []bool `json:"W"`
-	Th []bool `json:"Th"`
-	F  []bool `json:"F"`
-}
-
-type University struct {
-	University   string       `json:"university"`
-	IsAvailable  Availability `json:"isAvailable"`
-	ComboIndexes []int        `json:"comboIndexes"`
-}
-
-type Universities map[string]University
-
-// Pretty print JSON
-func prettyPrint(i interface{}) string {
-	s, _ := json.MarshalIndent(i, "", "\t")
-	return string(s)
-}
-
-func readUniversities() Universities {
-	data, err := os.ReadFile("allAvails.json")
-	if err != nil {
-		log.Fatalf("Failed to read file: %v", err)
-	}
-
-	// Unmarshal the JSON data into a Universities object
-	var unis Universities
-	err = json.Unmarshal(data, &unis)
-	if err != nil {
-		log.Fatalf("Failed to unmarshal JSON: %v", err)
-	}
-
-	return unis
-}
-
-func printMemoryUsage() {
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-	fmt.Printf("Alloc = %v MiB\n", bToMb(m.Alloc))
-	fmt.Printf("TotalAlloc = %v MiB\n", bToMb(m.TotalAlloc))
-	fmt.Printf("Sys = %v MiB\n", bToMb(m.Sys))
-	fmt.Printf("NumGC = %v\n", m.NumGC)
-}
-
-func generateCombos() {
-	// count of iterations
-	count := int64(1 << 34)
-
-	// create and start new bar
-	bar := pb.Full.Start64(count)
-
-	// Generate every 64bit uint from 0 to 2^34-1
-	for i := int64(0); i < count; i++ {
-		bar.Increment()
-	}
-
-	// finish bar
-	bar.Finish()
-}
 
 func main() {
 
-	// validity.CheckForValidity(int64(0b00001), []bool{true, false, true, false, true})
+	// Read in and parse data/maxMeetings.csv
 
-	universities := readUniversities()
+	maxMeetings, err := solver.ParseMaxMeetingsCSV("../data/maxMeetings.csv")
+	if err != nil {
+		log.Fatalf("Failed to parse maxMeetings.csv: %v", err)
+	}
+	fmt.Printf("Max Meetings: %v\n", maxMeetings)
 
-	validCombos := map[string][]uint64{}
-	validComboMinimums := map[string]int{}
+	// // Read in and parse data/combinations-chairs-0.tsv
+	chairCombos, err := solver.ParseChairCombos("../data/combinations-chairs-0.tsv", maxMeetings)
+	if err != nil {
+		log.Fatalf("Failed to parse combinations-chairs-0.tsv: %v", err)
+	}
+	fmt.Printf("Chair Combos: len(%v)\n", len(chairCombos))
 
-	// count of iterations
-	count := uint64(1 << 34)
-
-	// create and start new bar
-	bar := pb.Full.Start64(int64(count))
-
-	// Generate every 64bit uint from 0 to 2^34-1
-	// for i := count - 1; i >= 0; i-- {
-	for i := uint64(0); i < count; i++ {
-		bar.Increment()
-
-		// For each day in the universities
-		for uniName, uni := range universities {
-			// check if this combo exceeds the minimum number of meetings, and is valid
-			if bits.OnesCount64(i) >= validComboMinimums[uniName] {
-				schedule := uni.IsAvailable.M
-				if validity.CheckForValidity(i, schedule) {
-					validCombos[uniName] = append(validCombos[uniName], uint64(i))
-				}
-			}
-		}
-
-		if i%uint64(topEntriesKept*10) == 0 {
-			// in valid combos, keep the top 10000000 combos with the maximum amount of bits for each university
-			for ind, _ := range universities {
-
-				if len(validCombos[ind]) > topEntriesKept {
-					// sort the valid combos
-					sort.Slice(validCombos[ind], func(i, j int) bool {
-						return bits.OnesCount64(validCombos[ind][i]) > bits.OnesCount64(validCombos[ind][j])
-					})
-
-					validCombos[ind] = validCombos[ind][:topEntriesKept]
-
-					// keep track of the minimum amount of bits
-					validComboMinimums[ind] = bits.OnesCount64(validCombos[ind][topEntriesKept-1])
-				}
-			}
-			fmt.Println("M1 Minimum: ", validComboMinimums["M1"])
-		}
-
-		if (i % 10000000) == 0 {
-			printMemoryUsage()
-		}
-
+	// Create a map that goes from the participants in a combo to the combo
+	chairCombosMap := make(map[string][]solver.ParticipantsCombination)
+	for _, combo := range chairCombos {
+		chairCombosMap[combo.GetKey()] = append(chairCombosMap[combo.GetKey()], combo)
 	}
 
-	// finish bar
-	bar.Finish()
+	// initial solution is the first entry for each distinct day and time
+	initialSolution := make([]solver.ParticipantsCombination, 0)
+
+	const numParticipants = 10
+	for time := 1; time < 34+1; time++ {
+		for c_ind, combo := range chairCombos {
+			if combo.Time != int8(time) {
+				continue
+			}
+			fmt.Println("Adding combo", c_ind, " ", combo)
+			initialSolution = append(initialSolution, combo)
+			break
+		}
+	}
+
+	fmt.Println("Initial Solution: ", initialSolution)
+
+	solution := initialSolution
+	// prevSol := initialSolution
+
+	numIts := 0
+	const maxIts = 1000
+
+	visited := make(map[string]bool)
+	visited[solver.GetSolutionKey(solution)] = true
+	bestEquitability := solver.CalculateEquitability(solution, numParticipants)
+
+	// Tabu Search
+	for {
+		// Get neighborhood
+		neighborhood := solver.GetNeighborhood(solution, chairCombosMap, numParticipants)
+
+		// Find the best entry in the neighborhood
+		for _, entry := range neighborhood {
+			newEq := solver.CalculateEquitability(entry, numParticipants)
+			// fmt.Println("New Eq: ", newEq, " Best Eq: ", bestEquitability)
+			if newEq <= bestEquitability && !visited[solver.GetSolutionKey(entry)] {
+				solution = entry
+				bestEquitability = solver.CalculateEquitability(entry, numParticipants)
+			}
+			visited[solver.GetSolutionKey(entry)] = true
+		}
+		numIts++
+		fmt.Println("Iteration: ", numIts, " Best Equitability: ", bestEquitability)
+
+		// if len(solution) == len(prevSol) {
+		// 	equal := true
+		// 	for i := range solution {
+		// 		if !reflect.DeepEqual(solution[i], prevSol[i]) {
+		// 			equal = false
+		// 			break
+		// 		}
+		// 	}
+		// 	if equal {
+		// 		break
+		// 	}
+		// }
+
+		if numIts > maxIts {
+			break
+		}
+	}
+
+	fmt.Println("Final Solution: ", solution)
+	// Show solution distribution by number of meetings per participant
+	participantMeetings := make([]int8, numParticipants)
+	for _, combo := range solution {
+		for _, participant := range combo.Participants {
+			participantMeetings[participant]++
+		}
+	}
+	fmt.Println("Participant Meetings: ", participantMeetings)
+
+	// // Read in and parse data/combinations-members-0.tsv
+	// memberCombos, err := parseMemberCombos("../data/combinations-members-0.tsv", maxMeetings)
+	// if err != nil {
+	// 	log.Fatalf("Failed to parse combinations-members-0.tsv: %v", err)
+	// }
+	// fmt.Printf("Member Combos: len(%v)\n", len(memberCombos))
+
+	// // Show the distribution of the number of meetings, based on time for memberCombos
+	// meetingsDistribution := make(map[int]int)
+	// for _, memberCombo := range memberCombos {
+	// 	meetingsDistribution[int(memberCombo.Day)*5+int(memberCombo.Time)]++
+	// }
+	// fmt.Printf("Meetings Distribution: %v\n", meetingsDistribution)
+
+	// // Calculate the equitability of the chairCombos
+	// chairEquitability := calculateEquitability(chairCombos[:34], 10)
+	// fmt.Printf("Chair Equitability: %v\n", chairEquitability)
+
+	// fmt.Println("Neighborhood:")
+	// // Get neighborhood
+	// neighborhood := getNeighborhood(chairCombos[34:34+34], chairCombosMap, 10)
+	// for _, entry := range neighborhood {
+	// 	fmt.Println(entry)
+	// }
+
+	// for ind, entry := range neighborhood {
+	// 	fmt.Println(ind, ' ', len(entry), "eq: ", calculateEquitability(entry, 10))
+	// }
+	// fmt.Printf("Neighborhood: %v\n", neighborhood)
 
 }
