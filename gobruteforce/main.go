@@ -45,13 +45,14 @@ func main() {
 		}
 	}
 
-	fmt.Println("Initial Solution: ", initialSolution)
+	fmt.Println("Initial Solution: ", initialSolution, " Length: ", len(initialSolution))
 
-	solution := initialSolution
+	solution := make([]solver.ParticipantsCombination, len(initialSolution))
+	copy(solution, initialSolution)
 	// prevSol := initialSolution
 
 	numIts := 0
-	const maxIts = 1000
+	const maxIts = 10000
 
 	visited := make(map[string]bool)
 	visited[solver.GetSolutionKey(solution)] = true
@@ -64,16 +65,17 @@ func main() {
 
 		// Find the best entry in the neighborhood
 		for _, entry := range neighborhood {
+			// fmt.Println("Entry: ", solver.GetSolutionDistribution(entry, numParticipants))
 			newEq := solver.CalculateEquitability(entry, numParticipants)
 			// fmt.Println("New Eq: ", newEq, " Best Eq: ", bestEquitability)
 			if newEq <= bestEquitability && !visited[solver.GetSolutionKey(entry)] {
-				solution = entry
+				copy(solution, entry)
 				bestEquitability = solver.CalculateEquitability(entry, numParticipants)
 			}
 			visited[solver.GetSolutionKey(entry)] = true
 		}
 		numIts++
-		fmt.Println("Iteration: ", numIts, " Best Equitability: ", bestEquitability)
+		fmt.Println("Iteration: ", numIts, " Best Equitability: ", bestEquitability, " Solution length: ", len(solution))
 
 		// if len(solution) == len(prevSol) {
 		// 	equal := true
@@ -94,14 +96,14 @@ func main() {
 	}
 
 	fmt.Println("Final Solution: ", solution)
-	// Show solution distribution by number of meetings per participant
-	participantMeetings := make([]int8, numParticipants)
-	for _, combo := range solution {
-		for _, participant := range combo.Participants {
-			participantMeetings[participant]++
-		}
-	}
-	fmt.Println("Participant Meetings: ", participantMeetings)
+	fmt.Println()
+
+	fmt.Println("Initial Meetings: ", solver.GetSolutionDistribution(initialSolution, numParticipants))
+	fmt.Println("Final Meetings: ", solver.GetSolutionDistribution(solution, numParticipants))
+
+	fmt.Println()
+
+	fmt.Println(solver.DisplaySolution(solution, numParticipants, "Chair"))
 
 	// // Read in and parse data/combinations-members-0.tsv
 	// memberCombos, err := parseMemberCombos("../data/combinations-members-0.tsv", maxMeetings)

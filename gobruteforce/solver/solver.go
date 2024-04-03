@@ -6,12 +6,15 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"os"
 	"runtime"
 	"strconv"
 	"strings"
 
 	"github.com/cheggaaa/pb/v3"
+	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/maolinc/copier"
 )
 
 var topEntriesKept = 1000000
@@ -196,6 +199,8 @@ func ParseMemberCombos(filename string, maxMeetings []MaxMeeting) ([]Participant
 	reader.Comma = '\t'
 	reader.FieldsPerRecord = 3
 
+	_, _ = reader.Read() // Skip header
+
 	var memberCombinations []ParticipantsCombination
 	ind := 0
 	for {
@@ -261,7 +266,9 @@ func CalculateEquitability(combos []ParticipantsCombination, numParticipants int
 	penalty := 0.0
 	for _, numMeetings := range participantMeetings {
 		delta := expectedNumMeetings - float64(numMeetings)
-		penalty += delta * delta
+		// fmt.Println("Expected Num Meetings: ", expectedNumMeetings, "Num Meetings: ", numMeetings, "Delta: ", delta)
+		penalty += math.Abs(delta * delta * delta)
+		// fmt.Println("Penalty: ", penalty)
 	}
 
 	return penalty
@@ -275,6 +282,10 @@ func GetNeighborhood(combos []ParticipantsCombination, allCombos map[string][]Pa
 		// modify each participant down by 1
 		for participantInd, participant := range combo.Participants {
 			comboCopy := combo
+			comboCopy.Participants = make([]int8, len(combo.Participants))
+			copier.Copy(&comboCopy.Participants, &combo.Participants)
+
+			// fmt.Println("Combo Copy: ", comboCopy)
 
 			// modify the participant
 			modifiedId := (participant - 1 + numParticipants) % numParticipants
@@ -284,17 +295,25 @@ func GetNeighborhood(combos []ParticipantsCombination, allCombos map[string][]Pa
 			if _, ok := allCombos[combo.GetKey()]; !ok {
 				continue
 			}
+			if len(comboCopy.Participants) == 0 {
+				fmt.Println("Zero length combocopy", comboCopy.Participants)
+			}
+
 			neighborhoodEntry := make([]ParticipantsCombination, 34)
-			copy(neighborhoodEntry, combos)
+			copier.Copy(&neighborhoodEntry, &combos)
+
 			neighborhoodEntry[comboInd] = comboCopy
 			neighborhood = append(neighborhood, neighborhoodEntry)
 		}
 
+		// down by half
 		for participantInd, participant := range combo.Participants {
 			comboCopy := combo
+			comboCopy.Participants = make([]int8, len(combo.Participants))
+			copier.Copy(&comboCopy.Participants, &combo.Participants)
 
 			// modify the participant
-			modifiedId := (participant - 2 + numParticipants) % numParticipants
+			modifiedId := (participant - 3 + numParticipants) % numParticipants
 			comboCopy.Participants[participantInd] = modifiedId
 
 			// check to see if the modified participant is in allCombos
@@ -302,7 +321,7 @@ func GetNeighborhood(combos []ParticipantsCombination, allCombos map[string][]Pa
 				continue
 			}
 			neighborhoodEntry := make([]ParticipantsCombination, 34)
-			copy(neighborhoodEntry, combos)
+			copier.Copy(&neighborhoodEntry, &combos)
 			neighborhoodEntry[comboInd] = comboCopy
 			neighborhood = append(neighborhood, neighborhoodEntry)
 		}
@@ -310,6 +329,8 @@ func GetNeighborhood(combos []ParticipantsCombination, allCombos map[string][]Pa
 		// modify each participant up by 1
 		for participantInd, participant := range combo.Participants {
 			comboCopy := combo
+			comboCopy.Participants = make([]int8, len(combo.Participants))
+			copier.Copy(&comboCopy.Participants, &combo.Participants)
 
 			// modify the participant
 			modifiedId := (participant + 1) % numParticipants
@@ -319,18 +340,25 @@ func GetNeighborhood(combos []ParticipantsCombination, allCombos map[string][]Pa
 			if _, ok := allCombos[combo.GetKey()]; !ok {
 				continue
 			}
+
+			if len(comboCopy.Participants) == 0 {
+				fmt.Println("Zero length combocopy", comboCopy.Participants)
+			}
+
 			neighborhoodEntry := make([]ParticipantsCombination, 34)
-			copy(neighborhoodEntry, combos)
+			copier.Copy(&neighborhoodEntry, &combos)
 			neighborhoodEntry[comboInd] = comboCopy
 			neighborhood = append(neighborhood, neighborhoodEntry)
 		}
 
-		// modify each participant up by 2
+		// modify each participant up by half
 		for participantInd, participant := range combo.Participants {
 			comboCopy := combo
+			comboCopy.Participants = make([]int8, len(combo.Participants))
+			copier.Copy(&comboCopy.Participants, &combo.Participants)
 
 			// modify the participant
-			modifiedId := (participant + 2) % numParticipants
+			modifiedId := (participant + 7) % numParticipants
 			comboCopy.Participants[participantInd] = modifiedId
 
 			// check to see if the modified participant is in allCombos
@@ -338,7 +366,7 @@ func GetNeighborhood(combos []ParticipantsCombination, allCombos map[string][]Pa
 				continue
 			}
 			neighborhoodEntry := make([]ParticipantsCombination, 34)
-			copy(neighborhoodEntry, combos)
+			copier.Copy(&neighborhoodEntry, &combos)
 			neighborhoodEntry[comboInd] = comboCopy
 			neighborhood = append(neighborhood, neighborhoodEntry)
 		}
@@ -352,4 +380,48 @@ func GetSolutionKey(solution []ParticipantsCombination) string {
 		keys[i] = combo.GetKey()
 	}
 	return strings.Join(keys, "---")
+}
+
+func GetSolutionDistribution(solution []ParticipantsCombination, numParticipants int8) []int8 {
+	participantMeetings := make([]int8, numParticipants)
+	for _, combo := range solution {
+		for _, participant := range combo.Participants {
+			participantMeetings[participant]++
+		}
+	}
+	return participantMeetings
+}
+
+func DisplaySolution(solution []ParticipantsCombination, numParticipants int8, title string) string {
+
+	t := table.NewWriter()
+	t.SetCaption("Suggested Schedule (Tabu Search)")
+
+	header := table.Row{}
+	header = append(header, "Time")
+	for i := 0; i < int(numParticipants); i++ {
+		header = append(header, title+" "+strconv.Itoa(i+1))
+	}
+	t.AppendHeader(header)
+
+	for _, combo := range solution {
+		participSchedule := table.Row{}
+		participSchedule = append(participSchedule, strconv.Itoa(int(combo.Time)))
+
+		isParticipating := make([]bool, numParticipants)
+		for _, participant := range combo.Participants {
+			isParticipating[participant] = true
+		}
+		for _, isParticipating := range isParticipating {
+			if isParticipating {
+				participSchedule = append(participSchedule, "X")
+			} else {
+				participSchedule = append(participSchedule, "")
+			}
+		}
+
+		t.AppendRow(participSchedule)
+	}
+
+	return t.Render()
 }
