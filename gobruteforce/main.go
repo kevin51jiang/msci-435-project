@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/jedib0t/go-pretty/table"
 	"github.com/kevin51jiang/msci-435-go/solver"
@@ -184,6 +185,21 @@ func writeResults(day int, solution []solver.ParticipantsCombination, numPartici
 	file.WriteString(DisplaySolution(solution, numParticipants, "Member", CSV))
 }
 
+func areLast20EntriesSame(arr []float64) bool {
+	if len(arr) < 20 {
+		return false
+	}
+
+	last20 := arr[len(arr)-20:]
+	for i := 1; i < len(last20); i++ {
+		if last20[i] != last20[0] {
+			return false
+		}
+	}
+
+	return true
+}
+
 func solveMembers(day int) {
 	const numParticipants = 30
 
@@ -208,17 +224,37 @@ func solveMembers(day int) {
 	// initial solution is the first entry for each distinct day and time
 	initialSolution := make([]solver.ParticipantsCombination, 0)
 
+	// // write all the keys of participCombos to a file
+	// keysFile, err := os.Create("../data/participCombosKeys.csv")
+	// if err != nil {
+	// 	log.Fatalf("Failed to create file: %v", err)
+	// }
+	// defer keysFile.Close()
+
+	// for k := range participCombos {
+	// 	keysFile.WriteString(fmt.Sprintf("%v\n", k))
+	// }
+
 	for time := 1; time < 34+1; time++ {
-		for c_ind, combo := range participCombos {
-			if combo.Time != int8(time) {
-				continue
+		hasFound := false
+		for k := range participCombos {
+			if strings.HasPrefix(k, fmt.Sprintf("%v--", strconv.Itoa(time))) {
+				hasFound = true
+				combo := participCombos[k]
+				fmt.Println("Adding combo", k, " ", combo)
+				selectedCombo := solver.ParticipantsCombination{}
+				selectedCombo.Time = combo.Time
+				selectedCombo.Participants = make([]int8, len(combo.Participants))
+				copy(selectedCombo.Participants, combo.Participants)
+
+				initialSolution = append(initialSolution, selectedCombo)
+				break
 			}
-			fmt.Println("Adding combo", c_ind, " ", combo)
-			initialSolution = append(initialSolution, combo)
-			time++
-			break
+			continue
 		}
-		log.Panicf("Error: Time not found in particiant combos: %v", time)
+		if !hasFound {
+			log.Panicf("Error: Time not found in participant combos: %v", time)
+		}
 	}
 
 	fmt.Println("Initial Solution: ", initialSolution, " Length: ", len(initialSolution))
@@ -269,7 +305,10 @@ func solveMembers(day int) {
 		// 	}
 		// }
 
-		if numIts > maxIts {
+		// check if bestEquitability has not changed in the last n iterations
+		// if it hasn't, break
+
+		if numIts > maxIts && areLast20EntriesSame(bestEquitabilityLog) {
 			break
 		}
 	}

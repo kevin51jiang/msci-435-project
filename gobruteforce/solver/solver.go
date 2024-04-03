@@ -1,7 +1,6 @@
 package solver
 
 import (
-	"crypto/sha1"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -140,14 +139,14 @@ type ParticipantsCombination struct {
 func (p ParticipantsCombination) GetKey() string {
 	participants := make([]string, len(p.Participants))
 	for i, participant := range p.Participants {
-		participants[i] = strconv.Itoa(int(participant))
+		participants[i] = string(rune('A' + int(participant)))
 	}
 
-	fullKey := strings.Join(participants, "-") + "--" + strconv.Itoa(int(p.Time)) + "--" + strconv.Itoa(int(p.Day))
-	h := sha1.New()
-	h.Write([]byte(fullKey))
-	shortKey := string(h.Sum(nil)[0:8]) // this takes up less ram than the full key
-	return shortKey
+	fullKey := strconv.Itoa(int(p.Time)) + "--" + strings.Join(participants, "")
+	// h := sha1.New()
+	// h.Write([]byte(fullKey))
+	// shortKey := string(h.Sum(nil)[0:10]) // this takes up less ram than the full key
+	return fullKey
 }
 
 func ParseChairCombos(filename string, maxMeetings []MaxMeeting) ([]ParticipantsCombination, error) {
@@ -207,6 +206,8 @@ func ParseMemberCombos(filename string, maxMeetings []MaxMeeting) (map[string]Pa
 
 	_, _ = reader.Read() // Skip header
 
+	combosAtTime := make([]int, 34)
+
 	memberCombinations := make(map[string]ParticipantsCombination)
 	ind := 0
 	for {
@@ -220,6 +221,7 @@ func ParseMemberCombos(filename string, maxMeetings []MaxMeeting) (map[string]Pa
 
 		day, _ := strconv.Atoi(line[0])
 		time, _ := strconv.Atoi(line[1])
+		combosAtTime[time-1]++
 
 		membersStr := strings.Trim(line[2], "[]")
 		membersStrSplit := strings.Split(membersStr, ",")
@@ -229,20 +231,31 @@ func ParseMemberCombos(filename string, maxMeetings []MaxMeeting) (map[string]Pa
 			members[i] = int8(member)
 		}
 
-		if ind%1000000 == 0 {
-			fmt.Printf("Parsed %v member combinations\n", ind)
-		}
-
-		maxMeetingsAtTime := maxMeetings[day*5+time]
+		// maxMeetingsAtTime := maxMeetings[day*5+time]
 		ind++
-		if int(maxMeetingsAtTime.MaxMeetings)*5 != len(members) {
-			// fmt.Println("Max Meetings at Time: ", maxMeetingsAtTime.MaxMeetings, ' ', len(members))
-			continue
-		}
+		// if int(maxMeetingsAtTime.MaxMeetings)*5 != len(members) {
+		// 	// fmt.Println("Max Meetings at Time: ", maxMeetingsAtTime.MaxMeetings, ' ', len(members))
+		// 	continue
+		// }
 
 		participCombo := ParticipantsCombination{Day: int8(day), Time: int8(time), Participants: members}
 
+		if ind%1000000 == 0 {
+			fmt.Println("Latest ID: ", participCombo.GetKey())
+			fmt.Printf("Parsed %v member combinations\n", ind)
+
+		}
+
+		// if participCombo.Time == 2 {
+		// 	fmt.Println("Parsed: ", participCombo, participCombo.GetKey())
+		// }
+
 		memberCombinations[participCombo.GetKey()] = participCombo
+
+		// // check to make sure combo was added to memberCombinations
+		// if _, ok := memberCombinations[participCombo.GetKey()]; !ok {
+		// 	fmt.Println("Error: Combo not added to memberCombinations: ", participCombo)
+		// }
 
 	}
 
