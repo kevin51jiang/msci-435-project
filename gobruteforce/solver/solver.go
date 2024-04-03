@@ -1,6 +1,7 @@
 package solver
 
 import (
+	"crypto/sha1"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -141,7 +142,12 @@ func (p ParticipantsCombination) GetKey() string {
 	for i, participant := range p.Participants {
 		participants[i] = strconv.Itoa(int(participant))
 	}
-	return strings.Join(participants, "-") + "--" + strconv.Itoa(int(p.Time)) + "--" + strconv.Itoa(int(p.Day))
+
+	fullKey := strings.Join(participants, "-") + "--" + strconv.Itoa(int(p.Time)) + "--" + strconv.Itoa(int(p.Day))
+	h := sha1.New()
+	h.Write([]byte(fullKey))
+	shortKey := string(h.Sum(nil)[0:8]) // this takes up less ram than the full key
+	return shortKey
 }
 
 func ParseChairCombos(filename string, maxMeetings []MaxMeeting) ([]ParticipantsCombination, error) {

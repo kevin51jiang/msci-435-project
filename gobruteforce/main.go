@@ -188,7 +188,7 @@ func solveMembers(day int) {
 	const numParticipants = 30
 
 	numIts := 0
-	const maxIts = 20000
+	const maxIts = 50000
 
 	// Read in and parse data/maxMeetings.csv
 	maxMeetings, err := solver.ParseMaxMeetingsCSV("../data/maxMeetings.csv")
@@ -204,12 +204,6 @@ func solveMembers(day int) {
 		log.Fatalf("Failed to parse %v: %v", filename, err)
 	}
 	fmt.Printf("Member Combos: len(%v)\n", len(participCombos))
-
-	// // Create a map that goes from the participants in a combo to the combo
-	// chairCombosMap := make(map[string][]solver.ParticipantsCombination)
-	// for _, combo := range participCombos {
-	// 	chairCombosMap[combo.GetKey()] = append(chairCombosMap[combo.GetKey()], combo)
-	// }
 
 	// initial solution is the first entry for each distinct day and time
 	initialSolution := make([]solver.ParticipantsCombination, 0)
@@ -297,6 +291,10 @@ func solveMembers(day int) {
 func main() {
 
 	solveMembers(0)
+	solveMembers(1)
+	solveMembers(2)
+	solveMembers(3)
+	solveMembers(4)
 
 	// // Show the distribution of the number of meetings, based on time for memberCombos
 	// meetingsDistribution := make(map[int]int)
