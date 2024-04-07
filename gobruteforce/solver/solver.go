@@ -295,7 +295,7 @@ func CalculateEquitability(combos []ParticipantsCombination, numParticipants int
 	return penalty
 }
 
-func GetNeighborhood(combos []ParticipantsCombination, allCombos map[string]ParticipantsCombination, numParticipants int8) [][]ParticipantsCombination {
+func GetNeighborhood(combos []ParticipantsCombination, allCombos map[string][]ParticipantsCombination, numParticipants int8) [][]ParticipantsCombination {
 	neighborhood := make([][]ParticipantsCombination, 0)
 
 	for comboInd, combo := range combos {

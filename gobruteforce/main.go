@@ -5,109 +5,118 @@ import (
 	"log"
 	"os"
 	"strconv"
-	"strings"
 
 	"github.com/jedib0t/go-pretty/table"
 	"github.com/kevin51jiang/msci-435-go/solver"
 )
 
-// func solveChairs() {
+func solveChairs(day int) {
 
-// 	const numParticipants = 10
-// 	numIts := 0
-// 	const maxIts = 10000
+	const numParticipants = 10
+	numIts := 0
+	const minIts = 10000
 
-// 	// Read in and parse data/maxMeetings.csv
-// 	maxMeetings, err := solver.ParseMaxMeetingsCSV("../data/maxMeetings.csv")
-// 	if err != nil {
-// 		log.Fatalf("Failed to parse maxMeetings.csv: %v", err)
-// 	}
-// 	fmt.Printf("Max Meetings: %v\n", maxMeetings)
+	// Read in and parse data/maxMeetings.csv
+	maxMeetings, err := solver.ParseMaxMeetingsCSV("../data/maxMeetings.csv")
+	if err != nil {
+		log.Fatalf("Failed to parse maxMeetings.csv: %v", err)
+	}
+	fmt.Printf("Max Meetings: %v\n", maxMeetings)
 
-// 	// // Read in and parse data/combinations-chairs-0.tsv
-// 	chairCombos, err := solver.ParseChairCombos("../data/combinations-chairs-0.tsv", maxMeetings)
-// 	if err != nil {
-// 		log.Fatalf("Failed to parse combinations-chairs-0.tsv: %v", err)
-// 	}
-// 	fmt.Printf("Chair Combos: len(%v)\n", len(chairCombos))
+	// // Read in and parse data/combinations-chairs-0.tsv
+	chairCombos, err := solver.ParseChairCombos(fmt.Sprintf("../data/combinations-chairs-%v.tsv", day), maxMeetings)
+	if err != nil {
+		log.Fatalf("Failed to parse combinations-chairs-0.tsv: %v", err)
+	}
+	fmt.Printf("Chair Combos: len(%v)\n", len(chairCombos))
 
-// 	// Create a map that goes from the participants in a combo to the combo
-// 	chairCombosMap := make(map[string][]solver.ParticipantsCombination)
-// 	for _, combo := range chairCombos {
-// 		chairCombosMap[combo.GetKey()] = append(chairCombosMap[combo.GetKey()], combo)
-// 	}
+	// Create a map that goes from the participants in a combo to the combo
+	chairCombosMap := make(map[string][]solver.ParticipantsCombination)
+	for _, combo := range chairCombos {
+		chairCombosMap[combo.GetKey()] = append(chairCombosMap[combo.GetKey()], combo)
+	}
 
-// 	// initial solution is the first entry for each distinct day and time
-// 	initialSolution := make([]solver.ParticipantsCombination, 0)
+	// initial solution is the first entry for each distinct day and time
+	initialSolution := make([]solver.ParticipantsCombination, 0)
 
-// 	for time := 1; time < 34+1; time++ {
-// 		for c_ind, combo := range chairCombos {
-// 			if combo.Time != int8(time) {
-// 				continue
-// 			}
-// 			fmt.Println("Adding combo", c_ind, " ", combo)
-// 			initialSolution = append(initialSolution, combo)
-// 			break
-// 		}
-// 	}
+	for time := 1; time < 34+1; time++ {
+		for c_ind, combo := range chairCombos {
+			if combo.Time != int8(time) {
+				continue
+			}
+			fmt.Println("Adding combo", c_ind, " ", combo)
+			initialSolution = append(initialSolution, combo)
+			break
+		}
+	}
 
-// 	fmt.Println("Initial Solution: ", initialSolution, " Length: ", len(initialSolution))
+	fmt.Println("Initial Solution: ", initialSolution, " Length: ", len(initialSolution))
 
-// 	solution := make([]solver.ParticipantsCombination, len(initialSolution))
-// 	copy(solution, initialSolution)
+	solution := make([]solver.ParticipantsCombination, len(initialSolution))
+	copy(solution, initialSolution)
 
-// 	visited := make(map[string]bool)
-// 	visited[solver.GetSolutionKey(solution)] = true
-// 	bestEquitability := solver.CalculateEquitability(solution, numParticipants)
+	visited := make(map[string]bool)
+	visited[solver.GetSolutionKey(solution)] = true
+	bestEquitability := solver.CalculateEquitability(solution, numParticipants)
+	bestEquitabilityLog := make([]float64, 0)
+	bestEquitabilityLog = append(bestEquitabilityLog, bestEquitability)
 
-// 	// Tabu Search
-// 	for {
-// 		// Get neighborhood
-// 		neighborhood := solver.GetNeighborhood(solution, chairCombosMap, numParticipants)
+	// Tabu Search
+	for {
+		// Get neighborhood
+		neighborhood := solver.GetNeighborhood(solution, chairCombosMap, numParticipants)
 
-// 		// Find the best entry in the neighborhood
-// 		for _, entry := range neighborhood {
-// 			// fmt.Println("Entry: ", solver.GetSolutionDistribution(entry, numParticipants))
-// 			newEq := solver.CalculateEquitability(entry, numParticipants)
-// 			// fmt.Println("New Eq: ", newEq, " Best Eq: ", bestEquitability)
-// 			if newEq <= bestEquitability && !visited[solver.GetSolutionKey(entry)] {
-// 				copy(solution, entry)
-// 				bestEquitability = solver.CalculateEquitability(entry, numParticipants)
-// 			}
-// 			visited[solver.GetSolutionKey(entry)] = true
-// 		}
-// 		numIts++
-// 		fmt.Println("Iteration: ", numIts, " Best Equitability: ", bestEquitability, " Solution length: ", len(solution))
+		// Find the best entry in the neighborhood
+		for _, entry := range neighborhood {
+			// fmt.Println("Entry: ", solver.GetSolutionDistribution(entry, numParticipants))
+			newEq := solver.CalculateEquitability(entry, numParticipants)
+			// fmt.Println("New Eq: ", newEq, " Best Eq: ", bestEquitability)
+			if newEq <= bestEquitability && !visited[solver.GetSolutionKey(entry)] {
+				copy(solution, entry)
+				bestEquitability = solver.CalculateEquitability(entry, numParticipants)
+				bestEquitabilityLog = append(bestEquitabilityLog, bestEquitability)
+			}
+			visited[solver.GetSolutionKey(entry)] = true
+		}
 
-// 		// if len(solution) == len(prevSol) {
-// 		// 	equal := true
-// 		// 	for i := range solution {
-// 		// 		if !reflect.DeepEqual(solution[i], prevSol[i]) {
-// 		// 			equal = false
-// 		// 			break
-// 		// 		}
-// 		// 	}
-// 		// 	if equal {
-// 		// 		break
-// 		// 	}
-// 		// }
+		numIts++
 
-// 		if numIts > maxIts {
-// 			break
-// 		}
-// 	}
+		// if len(solution) == len(prevSol) {
+		// 	equal := true
+		// 	for i := range solution {
+		// 		if !reflect.DeepEqual(solution[i], prevSol[i]) {
+		// 			equal = false
+		// 			break
+		// 		}
+		// 	}
+		// 	if equal {
+		// 		break
+		// 	}
+		// }
+		if numIts%100 == 0 {
+			fmt.Println("Iteration: ", numIts, " Best Equitability: ", bestEquitability, " Solution length: ", len(solution))
+		}
 
-// 	fmt.Println("Final Solution: ", solution)
-// 	fmt.Println()
+		if numIts > minIts && areLast20EntriesSame(bestEquitabilityLog) {
+			break
+		}
+	}
 
-// 	fmt.Println("Initial Meetings: ", solver.GetSolutionDistribution(initialSolution, numParticipants))
-// 	fmt.Println("Final Meetings: ", solver.GetSolutionDistribution(solution, numParticipants))
+	// write out bestEquitabilityLog to a file
+	writeToLog(day, bestEquitabilityLog)
+	writeResults(day, solution, numParticipants)
 
-// 	fmt.Println()
+	fmt.Println("Final Solution: ", solution)
+	fmt.Println()
 
-// 	fmt.Println(solver.DisplaySolution(solution, numParticipants, "Chair"))
+	fmt.Println("Initial Meetings: ", solver.GetSolutionDistribution(initialSolution, numParticipants))
+	fmt.Println("Final Meetings: ", solver.GetSolutionDistribution(solution, numParticipants))
 
-// }
+	fmt.Println()
+
+	fmt.Println(solver.DisplaySolution(solution, numParticipants, "Chair"))
+
+}
 
 func writeToLog(day int, eqLog []float64) {
 	filename := fmt.Sprintf("../data/equitabilityLog-%v.csv", day)
@@ -200,138 +209,142 @@ func areLast20EntriesSame(arr []float64) bool {
 	return true
 }
 
-func solveMembers(day int) {
-	const numParticipants = 30
+// func solveMembers(day int) {
+// 	const numParticipants = 30
 
-	numIts := 0
-	const maxIts = 50000
+// 	// availGrid := validity.LoadAvailabilityGrid("../data/allAvailabilities.tsv")
 
-	// Read in and parse data/maxMeetings.csv
-	maxMeetings, err := solver.ParseMaxMeetingsCSV("../data/maxMeetings.csv")
-	if err != nil {
-		log.Fatalf("Failed to parse maxMeetings.csv: %v", err)
-	}
-	fmt.Printf("Max Meetings: %v\n", maxMeetings)
+// 	numIts := 0
+// 	const maxIts = 50000
 
-	// // Read in and parse data/combinations-members-0.tsv
-	filename := fmt.Sprintf("../data/combinations-members-%v.tsv", day)
-	participCombos, err := solver.ParseMemberCombos(filename, maxMeetings)
-	if err != nil {
-		log.Fatalf("Failed to parse %v: %v", filename, err)
-	}
-	fmt.Printf("Member Combos: len(%v)\n", len(participCombos))
+// 	// Read in and parse data/maxMeetings.csv
+// 	maxMeetings, err := solver.ParseMaxMeetingsCSV("../data/maxMeetings.csv")
+// 	if err != nil {
+// 		log.Fatalf("Failed to parse maxMeetings.csv: %v", err)
+// 	}
+// 	fmt.Printf("Max Meetings: %v\n", maxMeetings)
 
-	// initial solution is the first entry for each distinct day and time
-	initialSolution := make([]solver.ParticipantsCombination, 0)
+// 	// // Read in and parse data/combinations-members-0.tsv
+// 	filename := fmt.Sprintf("../data/combinations-members-%v.tsv", day)
+// 	participCombos, err := solver.ParseMemberCombos(filename, maxMeetings)
+// 	if err != nil {
+// 		log.Fatalf("Failed to parse %v: %v", filename, err)
+// 	}
+// 	fmt.Printf("Member Combos: len(%v)\n", len(participCombos))
 
-	// // write all the keys of participCombos to a file
-	// keysFile, err := os.Create("../data/participCombosKeys.csv")
-	// if err != nil {
-	// 	log.Fatalf("Failed to create file: %v", err)
-	// }
-	// defer keysFile.Close()
+// 	// initial solution is the first entry for each distinct day and time
+// 	initialSolution := make([]solver.ParticipantsCombination, 0)
 
-	// for k := range participCombos {
-	// 	keysFile.WriteString(fmt.Sprintf("%v\n", k))
-	// }
+// 	// // write all the keys of participCombos to a file
+// 	// keysFile, err := os.Create("../data/participCombosKeys.csv")
+// 	// if err != nil {
+// 	// 	log.Fatalf("Failed to create file: %v", err)
+// 	// }
+// 	// defer keysFile.Close()
 
-	for time := 1; time < 34+1; time++ {
-		hasFound := false
-		for k := range participCombos {
-			if strings.HasPrefix(k, fmt.Sprintf("%v--", strconv.Itoa(time))) {
-				hasFound = true
-				combo := participCombos[k]
-				fmt.Println("Adding combo", k, " ", combo)
-				selectedCombo := solver.ParticipantsCombination{}
-				selectedCombo.Time = combo.Time
-				selectedCombo.Participants = make([]int8, len(combo.Participants))
-				copy(selectedCombo.Participants, combo.Participants)
+// 	// for k := range participCombos {
+// 	// 	keysFile.WriteString(fmt.Sprintf("%v\n", k))
+// 	// }
 
-				initialSolution = append(initialSolution, selectedCombo)
-				break
-			}
-			continue
-		}
-		if !hasFound {
-			log.Panicf("Error: Time not found in participant combos: %v", time)
-		}
-	}
+// 	for time := 1; time < 34+1; time++ {
+// 		hasFound := false
+// 		for k, combo := range participCombos {
+// 			if combo.Time == int8(time) {
+// 				hasFound = true
+// 				fmt.Println("Adding combo", k, " ", combo)
+// 				selectedCombo := solver.ParticipantsCombination{}
+// 				selectedCombo.Time = combo.Time
+// 				selectedCombo.Participants = make([]int8, len(combo.Participants))
+// 				copy(selectedCombo.Participants, combo.Participants)
 
-	fmt.Println("Initial Solution: ", initialSolution, " Length: ", len(initialSolution))
+// 				initialSolution = append(initialSolution, selectedCombo)
+// 				break
+// 			}
+// 			continue
+// 		}
+// 		if !hasFound {
+// 			log.Panicf("Error: Time not found in participant combos: %v", time)
+// 		}
+// 	}
 
-	solution := make([]solver.ParticipantsCombination, len(initialSolution))
-	copy(solution, initialSolution)
-	// prevSol := initialSolution
+// 	fmt.Println("Initial Solution: ", initialSolution, " Length: ", len(initialSolution))
 
-	visited := make(map[string]bool)
-	visited[solver.GetSolutionKey(solution)] = true
-	bestEquitability := solver.CalculateEquitability(solution, numParticipants)
-	bestEquitabilityLog := make([]float64, 0)
-	bestEquitabilityLog = append(bestEquitabilityLog, bestEquitability)
+// 	solution := make([]solver.ParticipantsCombination, len(initialSolution))
+// 	copy(solution, initialSolution)
+// 	// prevSol := initialSolution
 
-	// Tabu Search
-	for {
-		// Get neighborhood
-		neighborhood := solver.GetNeighborhood(solution, participCombos, numParticipants)
+// 	visited := make(map[string]bool)
+// 	visited[solver.GetSolutionKey(solution)] = true
+// 	bestEquitability := solver.CalculateEquitability(solution, numParticipants)
+// 	bestEquitabilityLog := make([]float64, 0)
+// 	bestEquitabilityLog = append(bestEquitabilityLog, bestEquitability)
 
-		// Find the best entry in the neighborhood
-		for _, entry := range neighborhood {
-			// fmt.Println("Entry: ", solver.GetSolutionDistribution(entry, numParticipants))
-			newEq := solver.CalculateEquitability(entry, numParticipants)
-			// fmt.Println("New Eq: ", newEq, " Best Eq: ", bestEquitability)
-			if newEq <= bestEquitability && !visited[solver.GetSolutionKey(entry)] {
-				copy(solution, entry)
-				bestEquitability = solver.CalculateEquitability(entry, numParticipants)
-				bestEquitabilityLog = append(bestEquitabilityLog, bestEquitability)
-			}
-			visited[solver.GetSolutionKey(entry)] = true
-		}
-		numIts++
+// 	// Tabu Search
+// 	for {
+// 		// Get neighborhood
+// 		neighborhood := solver.GetNeighborhood(solution, participCombos, numParticipants)
 
-		if numIts%100 == 0 {
-			fmt.Println("Iteration: ", numIts, " Best Equitability: ", bestEquitability, " Solution length: ", len(solution))
-		}
+// 		// Find the best entry in the neighborhood
+// 		for _, entry := range neighborhood {
+// 			// fmt.Println("Entry: ", solver.GetSolutionDistribution(entry, numParticipants))
+// 			newEq := solver.CalculateEquitability(entry, numParticipants)
+// 			// fmt.Println("New Eq: ", newEq, " Best Eq: ", bestEquitability)
+// 			if newEq <= bestEquitability && !visited[solver.GetSolutionKey(entry)] {
+// 				copy(solution, entry)
+// 				bestEquitability = solver.CalculateEquitability(entry, numParticipants)
+// 				bestEquitabilityLog = append(bestEquitabilityLog, bestEquitability)
+// 			}
+// 			visited[solver.GetSolutionKey(entry)] = true
+// 		}
+// 		numIts++
 
-		// if len(solution) == len(prevSol) {
-		// 	equal := true
-		// 	for i := range solution {
-		// 		if !reflect.DeepEqual(solution[i], prevSol[i]) {
-		// 			equal = false
-		// 			break
-		// 		}
-		// 	}
-		// 	if equal {
-		// 		break
-		// 	}
-		// }
+// 		if numIts%100 == 0 {
+// 			fmt.Println("Iteration: ", numIts, " Best Equitability: ", bestEquitability, " Solution length: ", len(solution))
+// 		}
 
-		// check if bestEquitability has not changed in the last n iterations
-		// if it hasn't, break
+// 		// if len(solution) == len(prevSol) {
+// 		// 	equal := true
+// 		// 	for i := range solution {
+// 		// 		if !reflect.DeepEqual(solution[i], prevSol[i]) {
+// 		// 			equal = false
+// 		// 			break
+// 		// 		}
+// 		// 	}
+// 		// 	if equal {
+// 		// 		break
+// 		// 	}
+// 		// }
 
-		if numIts > maxIts && areLast20EntriesSame(bestEquitabilityLog) {
-			break
-		}
-	}
+// 		// check if bestEquitability has not changed in the last n iterations
+// 		// if it hasn't, break
 
-	// write out bestEquitabilityLog to a file
-	writeToLog(day, bestEquitabilityLog)
-	writeResults(day, solution, numParticipants)
+// 		if numIts > maxIts && areLast20EntriesSame(bestEquitabilityLog) {
+// 			break
+// 		}
+// 	}
 
-	fmt.Println("Final Solution: ", solution)
-	fmt.Println()
+// 	// write out bestEquitabilityLog to a file
+// 	writeToLog(day, bestEquitabilityLog)
+// 	writeResults(day, solution, numParticipants)
 
-	fmt.Println("Initial Meetings: ", solver.GetSolutionDistribution(initialSolution, numParticipants))
-	fmt.Println("Final Meetings: ", solver.GetSolutionDistribution(solution, numParticipants))
+// 	fmt.Println("Final Solution: ", solution)
+// 	fmt.Println()
 
-	fmt.Println()
+// 	fmt.Println("Initial Meetings: ", solver.GetSolutionDistribution(initialSolution, numParticipants))
+// 	fmt.Println("Final Meetings: ", solver.GetSolutionDistribution(solution, numParticipants))
 
-	fmt.Println(solver.DisplaySolution(solution, numParticipants, "Member"))
+// 	fmt.Println()
 
-}
+// 	fmt.Println(solver.DisplaySolution(solution, numParticipants, "Member"))
+
+// }
 
 func main() {
 
-	solveMembers(0)
+	// fmt.Println()
+	solveChairs(0)
+
+	// solveMembers(0)
 	// solveMembers(1)
 	// solveMembers(2)
 	// solveMembers(3)
