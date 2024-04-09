@@ -240,6 +240,7 @@ fabric.properties
 .idea/caches/build_file_checksums.ser
 
 #combinations file nukes repo
-combinations.txt
-combinations.csv
-combinations.tsv
+*combinations.txt
+*combinations.csv
+*combinations.tsv
+*combinations_4members.tsv
